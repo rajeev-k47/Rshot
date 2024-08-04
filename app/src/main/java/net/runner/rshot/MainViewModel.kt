@@ -2,25 +2,31 @@ package net.runner.rshot
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 class MainViewModel : ViewModel() {
-    //first state whether the search is happening or not
-    private val _isSearching = MutableStateFlow(false)
-    val isSearching = _isSearching.asStateFlow()
 
-    //second state the text typed by the user
     private val _searchText = MutableStateFlow("")
-    val searchText = _searchText.asStateFlow()
+    val searchText: StateFlow<String> = _searchText
 
-    fun onSearchTextChange(text: String) {
-        _searchText.value = text
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching
+
+    fun onSearchTextChange(query: String) {
+        _searchText.value = query
     }
 
-    fun onToogleSearch() {
-        _isSearching.value = !_isSearching.value
-        if (!_isSearching.value) {
-            onSearchTextChange("")
+    fun onToggleSearch(active:Boolean) {
+        _isSearching.value = active
+    }
+
+    fun filterData(data: List<DataClass>, query: String): List<DataClass> {
+        return if (query.isEmpty()) {
+            data
+        } else {
+            data.filter {
+                it.tag.contains(query, ignoreCase = true) || it.subject.contains(query, ignoreCase = true)
+            }
         }
     }
 }
