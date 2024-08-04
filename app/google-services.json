@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "743108069889",
+    "project_id": "rshot-78e0c",
+    "storage_bucket": "rshot-78e0c.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:743108069889:android:be475ea99754be5478ce00",
+        "android_client_info": {
+          "package_name": "net.runner.rshot"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAByFRnuvtPrbw4CJyGfQmE0ICZzDBkJP4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
