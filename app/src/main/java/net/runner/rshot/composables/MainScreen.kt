@@ -26,6 +26,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,10 +37,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import net.runner.rshot.CaptureImageScreen
 import net.runner.rshot.DataClass
 import net.runner.rshot.MainViewModel
 import net.runner.rshot.DataLoaderViewModel
 import net.runner.rshot.R
+import net.runner.rshot.formatUploadTime
 import net.runner.rshot.ui.theme.imageTint
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -46,6 +51,8 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel()){
     val viewModel = MainViewModel()
     val dataLoaded by dataviewModel.dataLoaded.observeAsState(false)
     val fetchedData by dataviewModel.fetchedData.observeAsState(emptyList())
+    var showDialog by remember { mutableStateOf(false) }
+
 
     val searchText by viewModel.searchText.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
@@ -73,10 +80,12 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel()){
             ,
             floatingActionButton = {
                 FloatingActionButton(
-                    onClick = {  },
+                    onClick = {
+                        showDialog=true
+                    },
                     containerColor = MaterialTheme.colorScheme.primary
                     ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add")
+                    Icon(Icons.Default.Add, contentDescription = "Add", modifier = Modifier.size(30.dp))
                 }
             },
             containerColor = Color.Transparent
@@ -92,6 +101,13 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel()){
                 }
             } else {
                 ListX(modifier = Modifier.padding(innerPadding),fetchedData)
+//                CaptureImageScreen()
+            }
+
+            if (showDialog) {
+                CaptureImageScreen(
+                    onDismiss = {showDialog=false}
+                )
             }
 
         }
@@ -115,11 +131,18 @@ fun ListX(modifier: Modifier,data: List<DataClass>){
                             .size(60.dp),
                         tint = imageTint
                     )
-                    Column {
+                    Column (
+                        modifier=Modifier.weight(0.7f)
+                    ){
                         Text(text = single.tag, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text(text = single.image, color = MaterialTheme.colorScheme.secondary)
+                        Text(text = single.subject, color = MaterialTheme.colorScheme.secondary)
 
                     }
+                    Text(
+                        text = formatUploadTime(single.time),
+                        color = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.padding(end = 10.dp)
+                        )
                 }
                 HorizontalDivider(thickness = 0.2.dp)
             }
