@@ -18,3 +18,4 @@ val Pink40 = Color(0xFF7D5260)
 
 val bg = Color(0xFF0F1522)
 val imageTint = Color(0xFF6F8ED1)
+val imageTintLight = Color(0xFF225CD8)
