@@ -6,10 +6,13 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.Firebase
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.firestore
 import kotlinx.coroutines.launch
+import javax.security.auth.Subject
 
-data class DataClass(val tag:String, val image:String)
+data class DataClass(val tag:String, val image:String,val time:String,val subject: String)
 class DataLoaderViewModel : ViewModel() {
     private val _dataLoaded = MutableLiveData(false)
     val dataLoaded: LiveData<Boolean> get() = _dataLoaded
@@ -25,16 +28,23 @@ class DataLoaderViewModel : ViewModel() {
     }
 
     private suspend fun loadDataFromDatabase() {
-        val db = Firebase.firestore
-        db.collection("users")
+        val db = FirebaseFirestore.getInstance()
+        val userId = FirebaseAuth.getInstance().currentUser?.uid
+        db.collection("users").document(userId!!).collection("data")
             .get()
             .addOnSuccessListener { result ->
                 val dataList = mutableListOf<DataClass>()
                 for (document in result) {
-                    for ((key, value) in document.data) {
-                        dataList.add(DataClass(key, value.toString()))
+                    val data = document.data
+                    val tag = data["imageName"] as? String ?: ""
+                    val image = data["imageUrl"] as? String ?: ""
+                    val time = data["imageTime"] as? String ?: ""
+                    val subject = data["imageSubject"] as? String ?: ""
+                    if (tag.isNotEmpty() && image.isNotEmpty() && time.isNotEmpty()) {
+                        dataList.add(DataClass(tag, image, time,subject))
                     }
-                    Log.d("TAG", "${document.id} => ${document.data} ,${document.data.keys}")
+
+                    Log.d("TAG", "${document.id} => ${data}")
                 }
                 _fetchedData.postValue(dataList)
             }
