@@ -92,7 +92,7 @@ fun LoginScreen(navController:NavController){
                         }
                     }
                 }) {
-                    Text("Register")
+                    Text("Login")
                 }
             }
         }
@@ -100,14 +100,21 @@ fun LoginScreen(navController:NavController){
 
 
 }
-
-@Composable
-fun content(){
-
-}
-
 fun registerUser(email: String, password: String, onComplete: (Boolean, String?) -> Unit) {
     auth.createUserWithEmailAndPassword(email, password)
+        .addOnCompleteListener { task ->
+            if (task.isSuccessful) {
+                onComplete(true, null)
+            } else {
+                loginUser(email,password){login,error->
+                    onComplete(login,error)
+                }
+            }
+        }
+}
+
+fun loginUser(email: String, password: String, onComplete: (Boolean, String?) -> Unit) {
+    auth.signInWithEmailAndPassword(email, password)
         .addOnCompleteListener { task ->
             if (task.isSuccessful) {
                 onComplete(true, null)
@@ -116,14 +123,3 @@ fun registerUser(email: String, password: String, onComplete: (Boolean, String?)
             }
         }
 }
-
-//fun loginUser(email: String, password: String, onComplete: (Boolean, String?) -> Unit) {
-//    auth.signInWithEmailAndPassword(email, password)
-//        .addOnCompleteListener { task ->
-//            if (task.isSuccessful) {
-//                onComplete(true, null)
-//            } else {
-//                onComplete(false, task.exception?.message)
-//            }
-//        }
-//}
