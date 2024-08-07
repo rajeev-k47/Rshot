@@ -13,7 +13,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -21,12 +28,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import com.google.firebase.auth.FirebaseAuth
@@ -39,27 +48,37 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CaptureImageScreen(onDismiss: () -> Unit) {
     val context = LocalContext.current
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+    var imageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
+    var imageCaptured by rememberSaveable { mutableStateOf(false) }
+
+    var imageName by rememberSaveable { mutableStateOf("") }
+    var imageSubject by rememberSaveable { mutableStateOf("") }
+
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    var selectedOption by rememberSaveable { mutableStateOf("") }
+    val options = listOf("Manufacturing", "Fluid", "Numerical","Drawing","Oec","Data Science")
+
+
 
     val takePictureLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
         onResult = { success ->
             if (success) {
                 Toast.makeText(context, "Image captured!", Toast.LENGTH_SHORT).show()
+                imageCaptured=true
             }
         }
     )
 
-    val imageFile = remember {
+    val imageFile = rememberSaveable {
         File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "captured_image_${System.currentTimeMillis()}.jpg")
     }
 
     val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", imageFile)
-    var imageName by remember { mutableStateOf("") }
-    var imageSubject by remember { mutableStateOf("") }
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = MaterialTheme.shapes.medium,
@@ -80,18 +99,60 @@ fun CaptureImageScreen(onDismiss: () -> Unit) {
                     label = { Text("Image Name") },
                     modifier = Modifier.fillMaxWidth()
                 )
-                OutlinedTextField(
-                    value = imageSubject,
-                    onValueChange = { imageSubject = it },
-                    label = { Text("Course") },
-                    modifier = Modifier.fillMaxWidth()
-                )
+//
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = {
+                        expanded = !expanded
+                    }
+                ) {
+                    OutlinedTextField(
+                        value = imageSubject,
+                        onValueChange = { imageSubject = it },
+                        label = { Text("Select an option") },
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth(),
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                        },
+                        readOnly = true
+                    )
+                    ExposedDropdownMenu(
+                        expanded = expanded,
+                        onDismissRequest = { expanded = false }
+                    ) {
+                        options.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    selectedOption = option
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
-                Button(onClick = {
+                if(!imageCaptured){
+                IconButton(
+                    onClick = {
                     takePictureLauncher.launch(uri)
                     imageUri = uri
-                }) {
-                    Text("Capture Image")
+                }){
+                    Icon(painter = painterResource(id = R.drawable.capture),
+                        contentDescription = "imageCapture",
+                        tint = MaterialTheme.colorScheme.primary
+                        )
+                }
+                }
+                else{
+                    Icon(
+                        painter = painterResource(id = R.drawable.checked),
+                        contentDescription = null,
+                        modifier = Modifier.size(50.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Row(
@@ -99,23 +160,32 @@ fun CaptureImageScreen(onDismiss: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Button(onClick = onDismiss) {
-                        Text("Cancel")
+                    Button(onClick = onDismiss,
+                        modifier = Modifier.padding(start = 15.dp)
+                    ) {
+                        Text("Cancel", fontSize = 15.sp)
                     }
                     Button(onClick = {
                         onDismiss()
                         uploadImageToFirebaseStorage(uri, onUploadSuccess = { downloadUrl ->
                             saveImageUrlToFirestore(imageName,imageSubject,downloadUrl, onSuccess = {
                                 imageUri=null
+                                Toast.makeText(
+                                    context,
+                                    "Image Saved Successfully!!",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                imageCaptured=false
                             }, onError = { exception ->
                                     onDismiss()
                             })
                         }, onError = { exception ->
                             onDismiss()
                         })
-                    }
+                    },
+                        modifier = Modifier.padding(end = 15.dp)
                     ) {
-                        Text("Save")
+                        Text("Save", fontSize = 15.sp)
                     }
                 }
             }
@@ -157,7 +227,7 @@ fun saveImageUrlToFirestore(imageName: String,imageSubject: String,downloadUrl: 
 }
 fun formatUploadTime(uploadTimeString: String): String {
     val uploadInstant = Instant.parse(uploadTimeString)
-    val uploadDate = LocalDate.ofInstant(uploadInstant, ZoneId.systemDefault())
+    val uploadDate = uploadInstant.atZone(ZoneId.systemDefault()).toLocalDate()
     val today = LocalDate.now()
 
     return when {
