@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -91,7 +93,7 @@ fun LoginScreen(navController:NavController){
                                     painterResource(id = R.drawable.visibility_on)
                                 }
                             val description = if (passwordHidden) "Show password" else "Hide password"
-                            Icon(painter = visibilityIcon, contentDescription = description)
+                            Icon(painter = visibilityIcon, contentDescription = description, modifier = Modifier.size(20.dp))
                         }
                     },
                     modifier = Modifier
@@ -114,7 +116,10 @@ fun LoginScreen(navController:NavController){
                         }
                     }
                 }) {
-                    Text("Login")
+                    Text("Login",
+                        fontSize = 16.sp,
+                        style = MaterialTheme.typography.titleMedium
+                    )
                 }
             }
         }
