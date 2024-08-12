@@ -2,9 +2,9 @@ package net.runner.rshot
 
 import android.net.Uri
 import android.os.Environment
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,7 +50,7 @@ import java.time.temporal.ChronoUnit
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CaptureImageScreen(onDismiss: () -> Unit) {
+fun CaptureImageScreen(viewModel: DataLoaderViewModel,onDismiss: () -> Unit) {
     val context = LocalContext.current
     var imageUri by rememberSaveable { mutableStateOf<Uri?>(null) }
     var imageCaptured by rememberSaveable { mutableStateOf(false) }
@@ -59,7 +59,6 @@ fun CaptureImageScreen(onDismiss: () -> Unit) {
     var imageSubject by rememberSaveable { mutableStateOf("") }
 
     var expanded by rememberSaveable { mutableStateOf(false) }
-    var selectedOption by rememberSaveable { mutableStateOf("") }
     val options = listOf("Manufacturing", "Fluid", "Numerical","Drawing","Oec","Data Science")
 
 
@@ -73,6 +72,18 @@ fun CaptureImageScreen(onDismiss: () -> Unit) {
             }
         }
     )
+
+    val pickImageLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri: Uri? ->
+            imageUri = uri
+            if (uri != null) {
+                Toast.makeText(context, "Image selected!", Toast.LENGTH_SHORT).show()
+                imageCaptured = true
+            }
+        }
+    )
+
 
     val imageFile = rememberSaveable {
         File(context.getExternalFilesDir(Environment.DIRECTORY_PICTURES), "captured_image_${System.currentTimeMillis()}.jpg")
@@ -109,7 +120,7 @@ fun CaptureImageScreen(onDismiss: () -> Unit) {
                     OutlinedTextField(
                         value = imageSubject,
                         onValueChange = { imageSubject = it },
-                        label = { Text("Select an option") },
+                        label = { Text("Course") },
                         modifier = Modifier
                             .menuAnchor()
                             .fillMaxWidth(),
@@ -126,7 +137,7 @@ fun CaptureImageScreen(onDismiss: () -> Unit) {
                             DropdownMenuItem(
                                 text = { Text(option) },
                                 onClick = {
-                                    selectedOption = option
+                                    imageSubject = option
                                     expanded = false
                                 }
                             )
@@ -135,16 +146,32 @@ fun CaptureImageScreen(onDismiss: () -> Unit) {
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 if(!imageCaptured){
-                IconButton(
-                    onClick = {
-                    takePictureLauncher.launch(uri)
-                    imageUri = uri
-                }){
-                    Icon(painter = painterResource(id = R.drawable.capture),
-                        contentDescription = "imageCapture",
-                        tint = MaterialTheme.colorScheme.primary
-                        )
-                }
+                    Row {
+
+                        IconButton(
+                            onClick = {
+                                takePictureLauncher.launch(uri)
+                                imageUri = uri
+                            },
+                            modifier = Modifier.padding(horizontal = 10.dp)
+                            ){
+                            Icon(painter = painterResource(id = R.drawable.capture),
+                                contentDescription = "imageCapture",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        IconButton(
+                            onClick = {  pickImageLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            },
+                            modifier = Modifier.size(50.dp)
+                            ) {
+                            Icon(painter = painterResource(id = R.drawable.gallery),
+                                contentDescription = "Pick from Gallery",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(42.dp)
+                            )
+                        }
+                    }
                 }
                 else{
                     Icon(
@@ -167,21 +194,24 @@ fun CaptureImageScreen(onDismiss: () -> Unit) {
                     }
                     Button(onClick = {
                         onDismiss()
-                        uploadImageToFirebaseStorage(uri, onUploadSuccess = { downloadUrl ->
-                            saveImageUrlToFirestore(imageName,imageSubject,downloadUrl, onSuccess = {
-                                imageUri=null
-                                Toast.makeText(
-                                    context,
-                                    "Image Saved Successfully!!",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                imageCaptured=false
-                            }, onError = { exception ->
+                        imageUri?.let { uri ->
+                            uploadImageToFirebaseStorage(uri, onUploadSuccess = { downloadUrl ->
+                                saveImageUrlToFirestore(imageName,imageSubject,viewModel,downloadUrl, onSuccess = {
+                                    imageUri=null
+                                    Toast.makeText(
+                                        context,
+                                        "Image Saved Successfully!!",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    viewModel.addData(DataClass(imageName,downloadUrl,Instant.now().toString(),imageSubject))
+                                    imageCaptured=false
+                                }, onError = { exception ->
                                     onDismiss()
+                                })
+                            }, onError = { exception ->
+                                onDismiss()
                             })
-                        }, onError = { exception ->
-                            onDismiss()
-                        })
+                        }
                     },
                         modifier = Modifier.padding(end = 15.dp)
                     ) {
@@ -210,10 +240,9 @@ fun uploadImageToFirebaseStorage(uri: Uri, onUploadSuccess: (String) -> Unit, on
             onError(exception)
         }
 }
-fun saveImageUrlToFirestore(imageName: String,imageSubject: String,downloadUrl: String, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+fun saveImageUrlToFirestore(imageName: String,imageSubject: String, viewModel: DataLoaderViewModel,downloadUrl: String, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
     val firestore = FirebaseFirestore.getInstance()
     val userId = FirebaseAuth.getInstance().currentUser?.uid
-    Log.d("hype",userId.toString())
     val data = hashMapOf(
         "imageName" to imageName,
         "imageSubject" to imageSubject,
@@ -221,8 +250,12 @@ fun saveImageUrlToFirestore(imageName: String,imageSubject: String,downloadUrl: 
         "imageUrl" to downloadUrl
     )
 
+
     firestore.collection("users").document(userId!!).collection("data").add(data)
-        .addOnSuccessListener { onSuccess() }
+        .addOnSuccessListener {
+            val newData = DataClass(imageName, downloadUrl, Instant.now().toString(), imageSubject)
+            viewModel.addData(newData)
+            onSuccess() }
         .addOnFailureListener { exception -> onError(exception) }
 }
 fun formatUploadTime(uploadTimeString: String): String {
