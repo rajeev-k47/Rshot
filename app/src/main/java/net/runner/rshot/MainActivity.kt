@@ -20,6 +20,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -80,14 +81,21 @@ class MainActivity : ComponentActivity() {
 fun ImageViewerScreen(imageUrl: String, onBack: () -> Unit) {
     val zoomState = remember { mutableStateOf(1f) }
     val isLoading = remember { mutableStateOf(true) }
+    val maxZoom = 5f
+    val minZoom = 1f
+    val offsetState = remember { mutableStateOf(Offset(0f, 0f)) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
             .pointerInput(Unit) {
-                detectTransformGestures { _, _, zoom, _ ->
-                    zoomState.value *= zoom
+                detectTransformGestures { _, pan, zoom, _ ->
+                    zoomState.value = (zoomState.value * zoom).coerceIn(1f, 5f)
+                    offsetState.value = Offset(
+                        offsetState.value.x + pan.x / zoomState.value,
+                        offsetState.value.y + pan.y / zoomState.value
+                    )
                 }
             }
     ) {
@@ -105,7 +113,9 @@ fun ImageViewerScreen(imageUrl: String, onBack: () -> Unit) {
                 .fillMaxSize()
                 .graphicsLayer(
                     scaleX = zoomState.value,
-                    scaleY = zoomState.value
+                    scaleY = zoomState.value,
+                    translationX = offsetState.value.x,
+                    translationY = offsetState.value.y
                 ),
             onSuccess = {
                 isLoading.value = false
