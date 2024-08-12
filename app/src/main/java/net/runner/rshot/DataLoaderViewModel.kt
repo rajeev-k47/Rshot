@@ -5,12 +5,10 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.firestore
+import com.google.firebase.firestore.Query
 import kotlinx.coroutines.launch
-import javax.security.auth.Subject
 
 data class DataClass(val tag:String, val image:String,val time:String,val subject: String)
 class DataLoaderViewModel : ViewModel() {
@@ -26,11 +24,20 @@ class DataLoaderViewModel : ViewModel() {
             _dataLoaded.postValue(true)
         }
     }
+    fun addData(newData: DataClass) {
+        val currentData = _fetchedData.value ?: emptyList()
+        val updatedData = (currentData + newData)
+            .sortedByDescending { it.time }
+        _fetchedData.postValue(updatedData)
+    }
+
+
 
     private suspend fun loadDataFromDatabase() {
         val db = FirebaseFirestore.getInstance()
         val userId = FirebaseAuth.getInstance().currentUser?.uid
         db.collection("users").document(userId!!).collection("data")
+            .orderBy("imageTime", Query.Direction.DESCENDING)
             .get()
             .addOnSuccessListener { result ->
                 val dataList = mutableListOf<DataClass>()
@@ -46,7 +53,8 @@ class DataLoaderViewModel : ViewModel() {
 
                     Log.d("TAG", "${document.id} => ${data}")
                 }
-                _fetchedData.postValue(dataList)
+                val sortedDataList = dataList.sortedByDescending { it.time }
+                _fetchedData.postValue(sortedDataList)
             }
             .addOnFailureListener { exception ->
                 Log.w("TAG", "Error getting documents.", exception)
