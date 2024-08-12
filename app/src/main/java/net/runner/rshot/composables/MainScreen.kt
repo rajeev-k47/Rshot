@@ -29,6 +29,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SearchBar
@@ -57,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.app.ActivityCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
 import net.runner.rshot.CaptureImageScreen
 import net.runner.rshot.DataClass
@@ -145,6 +147,20 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
                             }
                         )
                             }
+                        else{
+                            IconButton(onClick = {
+                                navController.navigate("LoginScreen")
+                                val firebaseAuth = FirebaseAuth.getInstance()
+                                firebaseAuth.signOut()
+                            }) {
+
+                                Icon(
+                                    painter = painterResource(id = R.drawable.logout), // This could be a clear or close icon
+                                    contentDescription = "Logout",
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                        }
                     },
                     tonalElevation = 0.dp,
                     placeholder = { Text(text = "Search...")},
@@ -164,7 +180,8 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
 
                             requestCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
                     },
-                    containerColor = MaterialTheme.colorScheme.primary
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 10.dp, end = 10.dp)
                     ) {
                     Icon(Icons.Default.Add, contentDescription = "Add", modifier = Modifier.size(30.dp))
                 }
@@ -186,6 +203,7 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
 
             if (showDialog) {
                 CaptureImageScreen(
+                    dataviewModel,
                     onDismiss = {showDialog=false}
                 )
             }
