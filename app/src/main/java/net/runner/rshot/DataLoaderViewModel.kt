@@ -20,7 +20,7 @@ class DataLoaderViewModel : ViewModel() {
 
     init {
         viewModelScope.launch {
-            loadDataFromDatabase()
+            val data =loadDataFromDatabase()
             _dataLoaded.postValue(true)
         }
     }
@@ -30,7 +30,11 @@ class DataLoaderViewModel : ViewModel() {
             .sortedByDescending { it.time }
         _fetchedData.postValue(updatedData)
     }
-
+    fun removeDataByImageUrl(imageUrl: String) {
+        val currentData = _fetchedData.value ?: emptyList()
+        val updatedData = currentData.filterNot { it.image == imageUrl }
+        _fetchedData.postValue(updatedData)
+    }
 
 
     private suspend fun loadDataFromDatabase() {
