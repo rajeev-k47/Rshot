@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
+import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -23,7 +25,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -65,6 +70,8 @@ import net.runner.rshot.DataClass
 import net.runner.rshot.DataLoaderViewModel
 import net.runner.rshot.MainViewModel
 import net.runner.rshot.R
+import net.runner.rshot.deleteDataFromFirestore
+import net.runner.rshot.deleteImageFromFirebaseStorage
 import net.runner.rshot.formatUploadTime
 import net.runner.rshot.ui.theme.imageTint
 import net.runner.rshot.ui.theme.imageTintLight
@@ -80,6 +87,7 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
     val isSearching by viewModel.isSearching.collectAsState()
     var showDialog by rememberSaveable { mutableStateOf(false) }
     var cameraPermission by remember { mutableStateOf(false) }
+    var deleteDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
@@ -169,21 +177,26 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
                     ),
                 ) {
                     if (isSearching) {
-                        ListX(modifier = Modifier.padding(1.dp), filteredData, navController)
+                        ListX(modifier = Modifier.padding(1.dp), filteredData, navController,deleteDialog){state->
+                            deleteDialog=state
+                        }
                     }
                 }
-            }
-            ,
+            },
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = {
 
-                            requestCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+                        requestCameraPermissionLauncher.launch(android.Manifest.permission.CAMERA)
                     },
                     containerColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 10.dp, end = 10.dp)
-                    ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add", modifier = Modifier.size(30.dp))
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "Add",
+                        modifier = Modifier.size(30.dp)
+                    )
                 }
             },
             containerColor = Color.Transparent
@@ -198,13 +211,20 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else {
-                ListX(modifier = Modifier.padding(innerPadding),filteredData, navController)
+                ListX(
+                    modifier = Modifier.padding(innerPadding),
+                    filteredData,
+                    navController,
+                    deleteDialog
+                ) {state->
+                    deleteDialog = state
+                }
             }
 
             if (showDialog) {
                 CaptureImageScreen(
                     dataviewModel,
-                    onDismiss = {showDialog=false}
+                    onDismiss = { showDialog = false }
                 )
             }
 
@@ -220,7 +240,8 @@ fun openAppSettings(context: Context) {
 }
 
 @Composable
-fun ListX(modifier: Modifier,data: List<DataClass>,navController: NavController){
+fun ListX(modifier: Modifier,data: List<DataClass>,navController: NavController,value:Boolean,deleteDialog:(Boolean)->Unit){
+    var selectedImageUrl by rememberSaveable { mutableStateOf<String?>(null) }
     Box(modifier = modifier.fillMaxSize()){
         LazyColumn {
             items(data){single->
@@ -254,12 +275,66 @@ fun ListX(modifier: Modifier,data: List<DataClass>,navController: NavController)
                         color = MaterialTheme.colorScheme.secondary,
                         modifier = Modifier.padding(end = 10.dp)
                         )
+                    IconButton(onClick = {
+                        selectedImageUrl=single.image
+                        deleteDialog(true)
+                    }) {
+                        Icon(imageVector = Icons.Default.Delete, contentDescription = "delete", tint = MaterialTheme.colorScheme.primary)
+                    }
                 }
                 HorizontalDivider(thickness = 0.2.dp)
             }
 
         }
+        if (value && selectedImageUrl != null) {
+            Log.d("data",selectedImageUrl.toString())
+            DeleteImageConfirmation(
+                imageUrl = selectedImageUrl!!,
+                onDismiss = { deleteDialog(false) }
+            )
+        }
 
     }
+}
+@Composable
+fun DeleteImageConfirmation(imageUrl: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val viewModel: DataLoaderViewModel = viewModel()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Delete Image") },
+        text = { Text("Are you sure you want to delete this image?") },
+        confirmButton = {
+            Button(onClick = {
+                deleteImageFromFirebaseStorage(
+                    imageUrl = imageUrl,
+                    onSuccess = {
+                        deleteDataFromFirestore(
+                            imageUrl = imageUrl,
+                            viewModel = viewModel,
+                            onSuccess = {
+                                Toast.makeText(context, "Image deleted successfully", Toast.LENGTH_SHORT).show()
+                                onDismiss()
+                            },
+                            onError = { exception ->
+                                Toast.makeText(context, "Error deleting image from Firestore", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                    },
+                    onError = { exception ->
+                        Toast.makeText(context, "Error deleting image from Storage", Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }) {
+                Text("Delete")
+            }
+        },
+        dismissButton = {
+            Button(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
