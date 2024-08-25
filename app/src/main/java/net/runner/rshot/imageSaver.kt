@@ -2,6 +2,7 @@ package net.runner.rshot
 
 import android.net.Uri
 import android.os.Environment
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -268,4 +269,39 @@ fun formatUploadTime(uploadTimeString: String): String {
         uploadDate.isEqual(today) -> "Today"
         else -> uploadDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
     }
+}
+fun deleteDataFromFirestore(imageUrl: String, viewModel: DataLoaderViewModel, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+    Log.d("data",imageUrl)
+    firestore.collection("users").document(userId!!).collection("data")
+        .whereEqualTo("imageUrl", imageUrl)
+        .get()
+        .addOnSuccessListener { result ->
+            for (document in result) {
+                Log.d("data",document.data.toString())
+                firestore.collection("users").document(userId).collection("data").document(document.id).delete()
+                    .addOnSuccessListener {
+                        viewModel.removeDataByImageUrl(imageUrl)
+                        onSuccess()
+                    }
+                    .addOnFailureListener { exception ->
+                        onError(exception)
+                    }
+            }
+        }
+        .addOnFailureListener { exception ->
+            onError(exception)
+        }
+}
+fun deleteImageFromFirebaseStorage(imageUrl: String, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+    val storageReference = FirebaseStorage.getInstance().getReferenceFromUrl(imageUrl)
+
+    storageReference.delete()
+        .addOnSuccessListener {
+            onSuccess()
+        }
+        .addOnFailureListener { exception ->
+            onError(exception)
+        }
 }
