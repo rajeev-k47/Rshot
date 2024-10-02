@@ -41,7 +41,9 @@ import androidx.compose.ui.window.Dialog
 import androidx.core.content.FileProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
+import org.json.JSONArray
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -259,6 +261,111 @@ fun saveImageUrlToFirestore(imageName: String,imageSubject: String, viewModel: D
             onSuccess() }
         .addOnFailureListener { exception -> onError(exception) }
 }
+fun addJsonToFirebase(data: JSONArray,onSuccess: () -> Unit, onError: (Exception) -> Unit){
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+    val dine = hashMapOf(
+        "dine" to data.toString()
+    )
+    firestore.collection("users").document(userId!!).collection("DineJson").add(dine)
+        .addOnSuccessListener {
+            onSuccess() }
+        .addOnFailureListener { exception -> onError(exception) }
+}
+fun saveImageUrlToFirestoreDine(downloadUrl: String, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+    val data = hashMapOf(
+        "imageUrl" to downloadUrl
+    )
+
+
+    firestore.collection("users").document(userId!!).collection("Dine").add(data)
+        .addOnSuccessListener {
+            onSuccess() }
+        .addOnFailureListener { exception -> onError(exception) }
+}
+fun uploadImageToFirebaseStorageDine(uri: Uri, onUploadSuccess: (String) -> Unit, onError: (Exception) -> Unit) {
+    val storageReference = FirebaseStorage.getInstance().reference
+    val fileReference = storageReference.child("Dine/${System.currentTimeMillis()}.jpg")
+
+    fileReference.putFile(uri)
+        .addOnSuccessListener { taskSnapshot ->
+            fileReference.downloadUrl.addOnSuccessListener { downloadUri ->
+                onUploadSuccess(downloadUri.toString())
+            }
+        }
+        .addOnFailureListener { exception ->
+            onError(exception)
+        }
+}
+
+fun jsonExists(onResult: (String) -> Unit) {
+    val db = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+    if (userId == null) {
+        onResult("null")
+        return
+    }
+
+    db.collection("users").document(userId).collection("DineJson")
+        .get()
+        .addOnSuccessListener { result ->
+            if (result.isEmpty) {
+                onResult("null")
+            } else {
+                val document = result.documents.first()
+                onResult(document.data.toString())
+            }
+        }
+        .addOnFailureListener { exception ->
+            Log.w("TAG", "Error getting documents.", exception)
+            onResult("null")
+        }
+}
+
+fun deletecacheDine(){
+    val firestore = FirebaseFirestore.getInstance()
+    val userId = FirebaseAuth.getInstance().currentUser?.uid
+    var uri =""
+    firestore.collection("users").document(userId!!).collection("Dine")
+        .get()
+        .addOnSuccessListener { result ->
+            for (document in result) {
+                Log.d("data5656",document.data["imageUrl"].toString())
+                uri= document.data["imageUrl"].toString()
+                val storageReference = FirebaseStorage.getInstance().getReferenceFromUrl(uri)
+
+                storageReference.delete()
+                    .addOnSuccessListener {
+                        firestore.collection("users").document(userId).collection("Dine").document(document.id).delete()
+                            .addOnSuccessListener {
+                            }
+                            .addOnFailureListener { exception ->
+                            }
+                    }
+                    .addOnFailureListener { exception ->
+                    }
+            }
+        }
+        .addOnFailureListener { exception ->
+        }
+    firestore.collection("users").document(userId!!).collection("DineJson")
+        .get()
+        .addOnSuccessListener { result ->
+            for (document in result) {
+                firestore.collection("users").document(userId).collection("DineJson").document(document.id).delete()
+                    .addOnSuccessListener {
+                    }
+                    .addOnFailureListener { exception ->
+                    }
+            }
+        }
+        .addOnFailureListener { exception ->
+        }
+
+
+}
 fun formatUploadTime(uploadTimeString: String): String {
     val uploadInstant = Instant.parse(uploadTimeString)
     val uploadDate = uploadInstant.atZone(ZoneId.systemDefault()).toLocalDate()
@@ -279,7 +386,6 @@ fun deleteDataFromFirestore(imageUrl: String, viewModel: DataLoaderViewModel, on
         .get()
         .addOnSuccessListener { result ->
             for (document in result) {
-                Log.d("data",document.data.toString())
                 firestore.collection("users").document(userId).collection("data").document(document.id).delete()
                     .addOnSuccessListener {
                         viewModel.removeDataByImageUrl(imageUrl)
