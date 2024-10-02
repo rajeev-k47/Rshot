@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
@@ -8,6 +10,10 @@ android {
     namespace = "net.runner.rshot"
     compileSdk = 34
 
+    buildFeatures{
+        viewBinding= true
+        buildConfig =true
+    }
     defaultConfig {
         applicationId = "net.runner.rshot"
         minSdk = 31
@@ -19,6 +25,11 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        val properties =  Properties()
+        properties.load(project.rootProject.file("apikeys.properties").inputStream())
+        buildConfigField("String","ONESIGNAL_API","\"${properties.getProperty("ONESIGNAL_API","")}\"")
+        buildConfigField("String","GENERATIVE_API_KEY","\"${properties.getProperty("GENERATIVE_API_KEY","")}\"")
+//        resValue()
     }
 
     buildTypes {
@@ -28,6 +39,10 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            val properties =  Properties()
+            properties.load(project.rootProject.file("apikeys.properties").inputStream())
+            buildConfigField("String","ONESIGNAL_API","\"${properties.getProperty("ONESIGNAL_API","")}\"")
+            buildConfigField("String","GENERATIVE_API_KEY","\"${properties.getProperty("GENERATIVE_API_KEY","")}\"")
         }
     }
     compileOptions {
@@ -79,9 +94,15 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation (libs.accompanist.systemuicontroller)
-
-
     implementation(libs.coil.compose)
+
+    implementation ("com.onesignal:OneSignal:[5.0.0, 5.99.99]")
+    implementation(libs.generativeai.v070)
+    implementation("com.rmtheis:tess-two:9.1.0")
+    implementation(libs.glide)
+    implementation("com.github.bumptech.glide:okhttp3-integration:4.15.1")
+
+
 
 
 
