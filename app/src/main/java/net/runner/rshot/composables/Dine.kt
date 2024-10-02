@@ -9,7 +9,6 @@ import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -19,13 +18,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CardElevation
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,7 +37,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -53,6 +48,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.request.target.CustomTarget
 import com.bumptech.glide.request.transition.Transition
 import com.google.ai.client.generativeai.GenerativeModel
+import com.google.ai.client.generativeai.type.content
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.CoroutineScope
@@ -62,7 +58,6 @@ import net.runner.rshot.BuildConfig
 import net.runner.rshot.R
 import net.runner.rshot.addJsonToFirebase
 import net.runner.rshot.deletecacheDine
-import net.runner.rshot.extractTextFromImage
 import net.runner.rshot.saveImageUrlToFirestoreDine
 import net.runner.rshot.uploadImageToFirebaseStorageDine
 import org.json.JSONArray
@@ -449,4 +444,15 @@ fun loadDineDataFromDatabase(context: Context) {
         .addOnFailureListener { exception ->
             Log.w("TAG", "Error getting Dine", exception)
         }
+}
+
+suspend fun extractTextFromImage(imageUri: Bitmap): String {
+
+    val inputContent = content {
+        image(imageUri)
+        text("convert all data of week to a json array and return lunch ,dinner and breakfast with proper comma separated meal")
+    }
+
+    val response = generativeModel.generateContent(inputContent)
+    return response.text?.trimIndent() ?: "No response text"
 }
