@@ -1,6 +1,9 @@
 package net.runner.rshot
 
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -20,7 +23,7 @@ class DataLoaderViewModel : ViewModel() {
 
     init {
         viewModelScope.launch {
-            val data =loadDataFromDatabase()
+            loadDataFromDatabase()
             _dataLoaded.postValue(true)
         }
     }
@@ -55,7 +58,6 @@ class DataLoaderViewModel : ViewModel() {
                         dataList.add(DataClass(tag, image, time,subject))
                     }
 
-                    Log.d("TAG", "${document.id} => ${data}")
                 }
                 val sortedDataList = dataList.sortedByDescending { it.time }
                 _fetchedData.postValue(sortedDataList)
@@ -64,5 +66,15 @@ class DataLoaderViewModel : ViewModel() {
                 Log.w("TAG", "Error getting documents.", exception)
                 _fetchedData.postValue(emptyList())
             }
+    }
+}
+
+class dineLoaderViewModel() : ViewModel(){
+    var Dinedata by mutableStateOf<String?>(null)
+        private set
+
+
+    fun setvar(value: String) {
+        Dinedata = value
     }
 }
