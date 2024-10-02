@@ -31,7 +31,9 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FabPosition
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,6 +67,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.launch
+import net.runner.rshot.BottomBar
 import net.runner.rshot.CaptureImageScreen
 import net.runner.rshot.DataClass
 import net.runner.rshot.DataLoaderViewModel
@@ -72,6 +75,8 @@ import net.runner.rshot.MainViewModel
 import net.runner.rshot.R
 import net.runner.rshot.deleteDataFromFirestore
 import net.runner.rshot.deleteImageFromFirebaseStorage
+import net.runner.rshot.dineData
+import net.runner.rshot.dineLoaderViewModel
 import net.runner.rshot.formatUploadTime
 import net.runner.rshot.ui.theme.imageTint
 import net.runner.rshot.ui.theme.imageTintLight
@@ -79,8 +84,9 @@ import java.net.URLEncoder
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: NavController){
+fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),dineLoaderViewModel: dineLoaderViewModel = viewModel(),navController: NavController){
     val viewModel : MainViewModel= viewModel()
+    val dineDataviewmodel = dineLoaderViewModel.Dinedata ?: "No Data Available"
     val dataLoaded by dataviewModel.dataLoaded.observeAsState(false)
     val fetchedData by dataviewModel.fetchedData.observeAsState(emptyList())
     val searchText by viewModel.searchText.collectAsState()
@@ -91,6 +97,10 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+
+    val Dinedata = rememberSaveable {
+        mutableStateOf("")
+    }
 
     val requestCameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -112,7 +122,9 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
     }
 
     val filteredData = viewModel.filterData(fetchedData, searchText)
-
+    var currentfragment = rememberSaveable{
+        mutableStateOf(1)
+    }
     Box (
         modifier = Modifier
             .fillMaxSize()
@@ -123,11 +135,19 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
             snackbarHost = {
                 SnackbarHost(hostState = snackbarHostState)
             },
+            bottomBar = {
+                BottomBar(selectedItem = currentfragment){selected->
+                    currentfragment.value=selected
+
+                }
+            },
             topBar = {
+                if (currentfragment.value==0) {
                 SearchBar(
                     query = searchText,
-                    onQueryChange = {query->
-                        viewModel.onSearchTextChange(query) },
+                    onQueryChange = { query ->
+                        viewModel.onSearchTextChange(query)
+                    },
                     onSearch = { query ->
                         viewModel.onSearchTextChange(query)
                     },
@@ -137,8 +157,7 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp)
-                        .padding(bottom = 5.dp),
+                        .padding(horizontal = 12.dp),
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Default.Search, // You can use any icon here
@@ -146,16 +165,15 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
                         )
                     },
                     trailingIcon = {
-                        if (isSearching){
-                        Icon(
-                            imageVector = Icons.Default.Close, // This could be a clear or close icon
-                            contentDescription = "Clear Icon",
-                            modifier = Modifier.clickable {
-                                viewModel.onSearchTextChange("")
-                            }
-                        )
-                            }
-                        else{
+                        if (isSearching) {
+                            Icon(
+                                imageVector = Icons.Default.Close, // This could be a clear or close icon
+                                contentDescription = "Clear Icon",
+                                modifier = Modifier.clickable {
+                                    viewModel.onSearchTextChange("")
+                                }
+                            )
+                        } else {
                             IconButton(onClick = {
                                 navController.navigate("LoginScreen")
                                 val firebaseAuth = FirebaseAuth.getInstance()
@@ -171,18 +189,28 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
                         }
                     },
                     tonalElevation = 0.dp,
-                    placeholder = { Text(text = "Search...")},
+                    placeholder = { Text(text = "Search...") },
                     colors = SearchBarDefaults.colors(
-                        containerColor = if(!isSearching)MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.background// Set your desired background color here
+                        containerColor = if (!isSearching) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.background// Set your desired background color here
                     ),
                 ) {
-                    if (isSearching) {
-                        ListX(modifier = Modifier.padding(1.dp), filteredData, navController,deleteDialog){state->
-                            deleteDialog=state
+                    if (currentfragment.value == 0) {
+                        if (isSearching) {
+                            ListX(
+                                modifier = Modifier.padding(1.dp),
+                                filteredData,
+                                navController,
+                                deleteDialog
+                            ) { state ->
+                                deleteDialog = state
+                            }
                         }
                     }
+
                 }
+            }
             },
+            floatingActionButtonPosition = if(currentfragment.value==2){ FabPosition.Start} else FabPosition.End,
             floatingActionButton = {
                 FloatingActionButton(
                     onClick = {
@@ -211,21 +239,39 @@ fun MainScreen(dataviewModel: DataLoaderViewModel = viewModel(),navController: N
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else {
-                ListX(
-                    modifier = Modifier.padding(innerPadding),
-                    filteredData,
-                    navController,
-                    deleteDialog
-                ) {state->
-                    deleteDialog = state
+                if(currentfragment.value==0){
+                    ListX(
+                        modifier = Modifier.padding(innerPadding),
+                        filteredData,
+                        navController,
+                        deleteDialog
+                    ) {state->
+                        deleteDialog = state
+                    }
+                }
+                else if(currentfragment.value==1){
+                    reminders()
+                }
+                else if(currentfragment.value==2){
+                    dine(
+                        dineData
+                    )
+
+
                 }
             }
 
             if (showDialog) {
+                if(currentfragment.value==0){
                 CaptureImageScreen(
                     dataviewModel,
                     onDismiss = { showDialog = false }
-                )
+                )}
+                else if(currentfragment.value==2){
+                    getImage (setdata = {data-> Dinedata.value=data}){
+                        showDialog=false
+                    }
+                }
             }
 
         }
